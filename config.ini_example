@@ -1,0 +1,4 @@
+[SYNAPSE]
+username = foo@foo.com 
+apikey = asdf 
+projectname = syn12345 

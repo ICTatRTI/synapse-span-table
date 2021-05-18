@@ -6,3 +6,5 @@
 - Schema changes detected and accomodated for when used. 
 
 
+## Test
+Copy `config.ini_example` to `config.ini`, add necessary information, then run `python3 test.py`.
