@@ -15,15 +15,36 @@ apiKey= config['SYNAPSE']['apiKey']
 syn.login(email=synUserName, apiKey=apiKey)
 project = syn.get(synProjectName)
 
-with open(os.path.join(os.getcwd(), 'data-1.json')) as f:
-  data1 = json.load(f)
-with open(os.path.join(os.getcwd(), 'data-2.json')) as f:
-  data2 = json.load(f)
+data1 = {
+  "id": "1",
+  "a": "1",
+  "b": "1",
+  "c": "1",
+  "d": "1",
+  "e": "1",
+  "f": "1",
+  "g": "1"
+}
+
+data2 = {
+  "id": "2",
+  "a": "2",
+  "b": "2",
+  "c": "2",
+  "p": "2",
+  "d": "2",
+  "f": "2",
+  "g": "2",
+  "h": "2",
+  "i": "2",
+  "j": "2"
+}
 
 tableName = 'test'
 columnLimit = 3
 
 synapse_spansert(syn, synProjectName, tableName, data1, columnLimit)
+synapse_spansert(syn, synProjectName, tableName, data2, columnLimit)
 
 # @TODO Check test data.
 
