@@ -1,13 +1,3 @@
-#
-# synapse_spansert:
-#   Utility function for inserting data table with columns greater than Synapse limit of columnLimit and
-#   support for data with fluctuating schema. When a table is first created a base table with one 
-#   ID column is created, then subsequent tables limited by columnLimit columns are created. Subsequent 
-#   tables share the same name affixed with `_<nth table>`. If the table exists and there are new
-#   columns in the data being inserted, additional columns are added to the last table until columnLimit
-#   columns are reached and then any additional tables are created to accomodate any additional new
-#   columns.
-#
 import json.encoder
 import pandas as pd
 from synapseclient import Schema, Column, Table, Row, RowSet, as_table_columns, build_table, table
