@@ -15,22 +15,21 @@ from synapseclient import Schema, Column, Table, Row, RowSet, as_table_columns, 
 SPAN_TABLE_DEFINITIONS = 'span_table_definitions'
 
 def synapse_spansert(syn, projectName, tableName, data, columnLimit=152):
-    # Ensure the span_table_schemas table exists.
-    install(syn, projectName)
-    # Ensure the span tables have the necessary schema to support adding this data.
     requiredColumns = list(set(list(data.keys())) - set(['id']))
+    # Find the Span Table's Definition.
     spanTableDefinitionsSynId = syn.findEntityId(SPAN_TABLE_DEFINITIONS, projectName)
     row = syn.tableQuery("select * from " + spanTableDefinitionsSynId + " where tableName='" + tableName + "'", resultsAs="rowset", limit=1)
+    # No Span Table Definition? Then create it, otherwise update it.
     if row.count == 0:
         create_span_table_definitions(syn, projectName, tableName, requiredColumns, columnLimit)
     else :
         spanTableDefinitions = json.loads(row.rowset.rows[0].get('values')[1])
         update_span_table_definitions(syn, projectName, tableName, spanTableDefinitions, requiredColumns, columnLimit)
-    # Upsert data.
+    # Upsert the data.
     upsert_span_table_data(syn, projectName, tableName, data)
 
 
-def install(syn, projectName) :
+def install_synapse_spansert(syn, projectName) :
     spanTableSchemasSynId = syn.findEntityId(SPAN_TABLE_DEFINITIONS, projectName)
     if spanTableSchemasSynId is None :
         schema = Schema(SPAN_TABLE_DEFINITIONS, [Column(name='tableName', columnType='LARGETEXT'), Column(name='spanTableDefinitions', columnType='LARGETEXT')], parent=projectName)

@@ -2,7 +2,7 @@ import configparser
 import synapseclient
 import json
 import os
-from synapse_spansert import synapse_spansert 
+from synapse_spansert import synapse_spansert, install_synapse_spansert
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.getcwd(), 'config.ini'))
@@ -14,6 +14,8 @@ synUserName= config['SYNAPSE']['UserName']
 apiKey= config['SYNAPSE']['apiKey']
 syn.login(email=synUserName, apiKey=apiKey)
 project = syn.get(synProjectName)
+
+install_synapse_spansert(syn, synProjectName)
 
 data1 = {
   "id": "1",
