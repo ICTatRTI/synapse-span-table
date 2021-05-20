@@ -3,7 +3,7 @@ import synapseclient
 from synapseclient import Project
 import json
 import os
-from synapse_span_table import flexsert_span_table_record, install_synapse_span_table
+from synapse_span_table import flexsert_span_table_record, install_span_table
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.getcwd(), 'config.ini'))
@@ -27,7 +27,7 @@ def cleanup() :
   delete_all_entities_in_project(syn, synProjectName)
 
 
-install_synapse_span_table(syn, synProjectName)
+install_span_table(syn, synProjectName)
 
 data1 = {
   "id": "1",

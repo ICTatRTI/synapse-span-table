@@ -14,12 +14,22 @@ from synapseclient import Schema, Column, Table, Row, RowSet, as_table_columns, 
 
 SPAN_TABLE_DEFINITIONS = 'span_table_definitions'
 
-def install_synapse_span_table(syn, projectName) :
+def install_span_table(syn, projectName) :
     spanTableSchemasSynId = syn.findEntityId(SPAN_TABLE_DEFINITIONS, projectName)
     if spanTableSchemasSynId is None :
         schema = Schema(SPAN_TABLE_DEFINITIONS, [Column(name='tableName', columnType='LARGETEXT'), Column(name='spanTableDefinitions', columnType='LARGETEXT')], parent=projectName)
         table = syn.store(Table(schema, []))
         return table
+
+def get_span_table_definitions(syn, projectName, tableName) :
+    spanTableDefinitionsSynId = syn.findEntityId(SPAN_TABLE_DEFINITIONS, projectName)
+    row = syn.tableQuery("select * from " + spanTableDefinitionsSynId + " where tableName='" + tableName + "'",
+                         resultsAs="rowset", limit=1)
+    if row.count == 0:
+        return None
+    else :
+        spanTableDefinitions = json.loads(row.rowset.rows[0].get('values')[1])
+        return spanTableDefinitions
 
 def create_span_table(syn, projectName, tableName, requiredColumns, columnLimit) :
     spanTableDefinitionsSynId = syn.findEntityId(SPAN_TABLE_DEFINITIONS, projectName)
@@ -132,14 +142,9 @@ def upsert_span_table_record(syn, projectName, tableName, data) :
 
 def flexsert_span_table_record(syn, projectName, tableName, data, columnLimit=152):
     requiredColumns = list(set(list(data.keys())) - set(['id']))
-    # Find the Span Table's Definition.
-    spanTableDefinitionsSynId = syn.findEntityId(SPAN_TABLE_DEFINITIONS, projectName)
-    row = syn.tableQuery("select * from " + spanTableDefinitionsSynId + " where tableName='" + tableName + "'", resultsAs="rowset", limit=1)
-    # No Span Table Definition? Then create it, otherwise update it.
-    if row.count == 0:
-        create_span_table(syn, projectName, tableName, requiredColumns, columnLimit)
-    else :
-        spanTableDefinitions = json.loads(row.rowset.rows[0].get('values')[1])
+    spanTableDefinitions = get_span_table_definitions(syn, projectName, tableName)
+    if spanTableDefinitions:
         update_span_table(syn, projectName, tableName, spanTableDefinitions, requiredColumns, columnLimit)
-    # Upsert the data.
+    else :
+        create_span_table(syn, projectName, tableName, requiredColumns, columnLimit)
     upsert_span_table_record(syn, projectName, tableName, data)
