@@ -32,7 +32,12 @@ def get_span_table_definitions(syn, projectName, tableName) :
         return spanTableDefinitions
 
 def create_span_table(syn, projectName, tableName, requiredColumns, columnLimit) :
-    spanTableDefinitionsSynId = syn.findEntityId(SPAN_TABLE_DEFINITIONS, projectName)
+    # Create the base table.
+    baseTableSchema = Schema(tableName,
+                    [Column(name='id', columnType='LARGETEXT')],
+                    parent=projectName)
+    baseTable = syn.store(Table(baseTableSchema, []))
+    # Calculate span table definitions for this table.
     spanTableDefinitions = []
     while len(requiredColumns) > 0 :
         spanTableDefinition = {
@@ -43,6 +48,8 @@ def create_span_table(syn, projectName, tableName, requiredColumns, columnLimit)
         while len(spanTableDefinition['columns']) < columnLimit and len(requiredColumns) > 0 :
             spanTableDefinition['columns'].append(requiredColumns.pop())
         spanTableDefinitions.append(spanTableDefinition)
+    # Save the span table definitions.
+    spanTableDefinitionsSynId = syn.findEntityId(SPAN_TABLE_DEFINITIONS, projectName)
     spanTableDefinitionsSchema = syn.get(spanTableDefinitionsSynId)
     data = pd.DataFrame([
         {
@@ -51,6 +58,7 @@ def create_span_table(syn, projectName, tableName, requiredColumns, columnLimit)
         }
     ])
     syn.store(Table(spanTableDefinitionsSchema, data))
+    # Create the span tables from the definitions.
     for spanTableDefinition in spanTableDefinitions :
         columns = []
         for column in spanTableDefinition['columns'] :
