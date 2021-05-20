@@ -45,7 +45,7 @@ def create_span_table_definitions(syn, projectName, tableName, requiredColumns, 
             "spanTableName": tableName + "_" + str(len(spanTableDefinitions) + 1),
             "columns": ['id']
         }
-        while len(spanTableDefinition['columns']) <= columnLimit and len(requiredColumns) > 0 :
+        while len(spanTableDefinition['columns']) < columnLimit and len(requiredColumns) > 0 :
             spanTableDefinition['columns'].append(requiredColumns.pop())
         spanTableDefinitions.append(spanTableDefinition)
     spanTableDefinitionsSchema = syn.get(spanTableDefinitionsSynId)
