@@ -2,7 +2,6 @@ import configparser
 import synapseclient
 import json
 import os
-from synapse_spansert import synapse_spansert 
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.getcwd(), 'config.ini'))
@@ -15,9 +14,6 @@ apiKey= config['SYNAPSE']['apiKey']
 syn.login(email=synUserName, apiKey=apiKey)
 project = syn.get(synProjectName)
 
-tableNames = ['span_table_definitions', 'test_1', 'test_2', 'test_3']
-
-for tableName in tableNames :
-    synId = syn.findEntityId(tableName, synProjectName)
-    schema = syn.get(synId)
-    syn.delete(schema)
+children = syn.getChildren(synProjectName)
+for entity in children :
+    syn.delete(entity['id'])

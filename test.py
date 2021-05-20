@@ -1,8 +1,9 @@
 import configparser
 import synapseclient
+from synapseclient import Project
 import json
 import os
-from synapse_spansert import synapse_spansert, install_synapse_spansert
+from synapse_span_table import flexsert_span_table_record, install_synapse_span_table
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.getcwd(), 'config.ini'))
@@ -13,9 +14,20 @@ synProjectName= config['SYNAPSE']['ProjectName']
 synUserName= config['SYNAPSE']['UserName']
 apiKey= config['SYNAPSE']['apiKey']
 syn.login(email=synUserName, apiKey=apiKey)
-project = syn.get(synProjectName)
 
-install_synapse_spansert(syn, synProjectName)
+
+def delete_all_entities_in_project(syn, synProjectName) :
+  children = syn.getChildren(synProjectName)
+  for entity in children:
+    syn.delete(entity['id'])
+
+def cleanup() :
+  global syn
+  global synProjectName
+  delete_all_entities_in_project(syn, synProjectName)
+
+
+install_synapse_span_table(syn, synProjectName)
 
 data1 = {
   "id": "1",
@@ -45,9 +57,12 @@ data2 = {
 tableName = 'test'
 columnLimit = 3
 
-synapse_spansert(syn, synProjectName, tableName, data1, columnLimit)
-synapse_spansert(syn, synProjectName, tableName, data2, columnLimit)
+# Test inserting records with different schemas into the same table.
+flexsert_span_table_record(syn, synProjectName, tableName, data1, columnLimit)
+flexsert_span_table_record(syn, synProjectName, tableName, data2, columnLimit)
+#@TODO Write test conditions.
+#cleanup()
 
-# @TODO Check test data.
-
-# @TODO Clean up test data.
+# @TODO Test updating a record with the same schema.
+# @TODO Test updating a record with a different schema.
+# Clean up test data.
