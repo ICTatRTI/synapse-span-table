@@ -117,7 +117,19 @@ def drop_span_table(syn, projectName, tableName):
 
 def create_span_table_record(syn, projectName, tableName, data, columnLimit=152):
     spanTableDefinitions = get_span_table_definitions(syn, projectName, tableName)
-    #@TODO
+    for spanTableDefinition in spanTableDefinitions :
+        row = {}
+        for columnName in spanTableDefinition['columns'] :
+            if (columnName in data) :
+                row[columnName] = data[columnName]
+            else :
+                row[columnName] = ''
+        synId = syn.findEntityId(spanTableDefinition['spanTableName'], projectName)
+        spanTableSchema = syn.get(synId)
+        df = pd.DataFrame([
+            row
+        ])
+        syn.store(Table(spanTableSchema, df))
     return
 
 def read_span_table_record(syn, projectName, tableName, id):
