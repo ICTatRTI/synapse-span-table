@@ -189,7 +189,7 @@ def delete_span_table_record(syn, projectName, tableName, id):
 
 def upsert_span_table_record(syn, projectName, tableName, data, columnLimit=152) :
     exists = exists_span_table_record(syn, projectName, tableName, data['id'])
-    if exists is not True :
+    if exists is True :
         update_span_table_record(syn, projectName, tableName, data, columnLimit)
     else :
         create_span_table_record(syn, projectName, tableName, data, columnLimit)
