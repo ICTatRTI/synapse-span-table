@@ -116,6 +116,17 @@ def drop_span_table(syn, projectName, tableName):
     return
 
 def create_span_table_record(syn, projectName, tableName, data, columnLimit=152):
+    # Store in base table first.
+    row = {
+        "id": data['id']
+    }
+    synId = syn.findEntityId(tableName, projectName)
+    baseTableSchema = syn.get(synId)
+    df = pd.DataFrame([
+        row
+    ])
+    syn.store(Table(baseTableSchema, df))
+    # Now trickle out into span tables.
     spanTableDefinitions = get_span_table_definitions(syn, projectName, tableName)
     for spanTableDefinition in spanTableDefinitions :
         row = {}
@@ -132,23 +143,56 @@ def create_span_table_record(syn, projectName, tableName, data, columnLimit=152)
         syn.store(Table(spanTableSchema, df))
     return
 
+def exists_span_table_record(syn, projectName, tableName, id):
+    synId = syn.findEntityId(tableName, projectName)
+    row = syn.tableQuery("select * from " + synId + " where id='" + id + "'",
+                         resultsAs="rowset", limit=1)
+    if row.count == 0:
+        return False
+    else:
+        return True
+
 def read_span_table_record(syn, projectName, tableName, id):
-    # @TODO
-    return
+    synId = syn.findEntityId(tableName, projectName)
+    query = syn.tableQuery("select * from " + synId + " where id='" + id + "'", resultsAs="rowset", limit=1)
+    if query.count == 0:
+        return None
+    else:
+        data = {}
+        spanTableDefinitions = get_span_table_definitions(syn, projectName, tableName)
+        for spanTableDefinition in spanTableDefinitions:
+            synId = syn.findEntityId(spanTableDefinition['spanTableName'], projectName)
+            query = syn.tableQuery("select * from " + synId + " where id='" + id + "'", resultsAs="rowset", limit=1)
+            if query.count > 0 :
+                row = query.rowset.rows[0]
+                for headerDefinition in query.rowset.headers :
+                    data[headerDefinition.name] = row['values'].pop(0)
+        return data
 
 def update_span_table_record(syn, projectName, tableName, data, columnLimit=152):
-    # @TODO
+    delete_span_table_record(syn, projectName, tableName, data['id'])
+    create_span_table_record(syn, projectName, tableName, data, columnLimit=152)
     return
 
 def delete_span_table_record(syn, projectName, tableName, id):
-    #@TODO
+    # First delete record in base table.
+    #synId = syn.findEntityId(tableName, projectName)
+    #row = syn.tableQuery("select * from " + synId + " where id='" + id + "'", resultsAs="rowset", limit=1)
+    #syn.delete(row)
+    # Now delete record in span tables.
+    spanTableDefinitions = get_span_table_definitions(syn, projectName, tableName)
+    for spanTableDefinition in spanTableDefinitions:
+        synId = syn.findEntityId(spanTableDefinition['spanTableName'], projectName)
+        row = syn.tableQuery("select * from " + synId + " where id='" + id + "'", resultsAs="rowset", limit=1)
+        syn.delete(row)
     return
 
 def upsert_span_table_record(syn, projectName, tableName, data, columnLimit=152) :
-    record = read_span_table_record(syn, projectName, tableName, data['id'])
-    if record :
-        delete_span_table_record(syn, projectName, tableName, data['id'])
-    create_span_table_record(syn, projectName, tableName, data, columnLimit)
+    exists = exists_span_table_record(syn, projectName, tableName, data['id'])
+    if exists is not True :
+        update_span_table_record(syn, projectName, tableName, data, columnLimit)
+    else :
+        create_span_table_record(syn, projectName, tableName, data, columnLimit)
     return
 
 def flexsert_span_table_record(syn, projectName, tableName, data, columnLimit=152):
