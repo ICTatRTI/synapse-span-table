@@ -70,7 +70,7 @@ for key in data2.keys():
 if allValuesMatch == True :
   print('Passed: ' + TestName)
 else :
-  print('Failed: ' + TestName)
+  raise RuntimeError('Failed: ' + TestName) from error
 cleanup()
 
 TestName = 'Should update a record with the same schema.'
@@ -94,7 +94,7 @@ recordUpdated = read_span_table_record(syn, synProjectName, tableName, data['id'
 if recordUpdated['g'] == '1a' :
   print('Passed: ' + TestName)
 else :
-  print('Failed: ' + TestName)
+  raise RuntimeError('Failed: ' + TestName) from error
 cleanup()
 
 # @TODO Test updating a record with a different schema.
