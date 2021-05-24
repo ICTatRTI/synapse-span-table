@@ -116,10 +116,11 @@ def drop_span_table(syn, projectName, tableName):
     return
 
 def create_span_table_record(syn, projectName, tableName, data, columnLimit=152):
+    spanTableDefinitions = get_span_table_definitions(syn, projectName, tableName)
     #@TODO
     return
 
-def read_span_table_record(syn, projectName, tableName, data, columnLimit=152):
+def read_span_table_record(syn, projectName, tableName, id):
     # @TODO
     return
 
@@ -127,15 +128,15 @@ def update_span_table_record(syn, projectName, tableName, data, columnLimit=152)
     # @TODO
     return
 
-def delete_span_table_record(syn, projectName, tableName, data, columnLimit=152):
+def delete_span_table_record(syn, projectName, tableName, id):
     #@TODO
     return
 
-def upsert_span_table_record(syn, projectName, tableName, data) :
-    # Get spanTableDefinitions.
-    # If it already exists, delete it from every spanTable.
-    # For each spanTableDefinition, pour applicable data into it.
-    # @TODO
+def upsert_span_table_record(syn, projectName, tableName, data, columnLimit=152) :
+    record = read_span_table_record(syn, projectName, tableName, data['id'])
+    if record :
+        delete_span_table_record(syn, projectName, tableName, data['id'])
+    create_span_table_record(syn, projectName, tableName, data, columnLimit)
     return
 
 def flexsert_span_table_record(syn, projectName, tableName, data, columnLimit=152):
