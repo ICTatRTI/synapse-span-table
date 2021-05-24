@@ -172,9 +172,9 @@ def read_span_table_record(syn, projectName, tableName, id):
                     data[headerDefinition.name] = row['values'].pop(0)
         return data
 
-def update_span_table_record(syn, projectName, tableName, data, columnLimit=152):
+def update_span_table_record(syn, projectName, tableName, data):
     delete_span_table_record(syn, projectName, tableName, data['id'])
-    create_span_table_record(syn, projectName, tableName, data, columnLimit=152)
+    create_span_table_record(syn, projectName, tableName, data)
     return
 
 def delete_span_table_record(syn, projectName, tableName, id):
@@ -190,12 +190,12 @@ def delete_span_table_record(syn, projectName, tableName, id):
         syn.delete(row)
     return
 
-def upsert_span_table_record(syn, projectName, tableName, data, columnLimit=152) :
+def upsert_span_table_record(syn, projectName, tableName, data) :
     exists = exists_span_table_record(syn, projectName, tableName, data['id'])
     if exists is True :
-        update_span_table_record(syn, projectName, tableName, data, columnLimit)
+        update_span_table_record(syn, projectName, tableName, data)
     else :
-        create_span_table_record(syn, projectName, tableName, data, columnLimit)
+        create_span_table_record(syn, projectName, tableName, data)
     return
 
 def flexsert_span_table_record(syn, projectName, tableName, data, columnLimit=152):
