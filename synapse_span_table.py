@@ -115,7 +115,10 @@ def drop_span_table(syn, projectName, tableName):
     # @TODO
     return
 
-def create_span_table_record(syn, projectName, tableName, data, columnLimit=152):
+def create_span_table_record(syn, projectName, tableName, data):
+    # Make sure all values are strings.
+    for key in data.keys() :
+        data[key] = str(data[key])
     # Store in base table first.
     row = {
         "id": data['id']
