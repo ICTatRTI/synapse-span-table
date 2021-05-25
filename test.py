@@ -5,29 +5,28 @@ import json
 import os
 from synapse_span_table import flexsert_span_table_record, install_span_table, read_span_table_record
 
+# Config.
 config = configparser.ConfigParser()
 config.read(os.path.join(os.getcwd(), 'config.ini'))
 config.sections()
 
+# Connect to Synapse.
 syn = synapseclient.Synapse()
 synProjectName= config['SYNAPSE']['ProjectName']
 synUserName= config['SYNAPSE']['UserName']
 apiKey= config['SYNAPSE']['apiKey']
 syn.login(email=synUserName, apiKey=apiKey)
 
-
-def delete_all_entities_in_project(syn, synProjectName) :
+def afterTest() :
+  global syn
+  global synProjectName
   children = syn.getChildren(synProjectName)
   for entity in children:
     syn.delete(entity['id'])
 
-def cleanup() :
-  global syn
-  global synProjectName
-  delete_all_entities_in_project(syn, synProjectName)
-
-
-
+#
+# Test
+#
 
 TestName = 'Should insert records with different schemas into the same table.'
 tableName = 'test'
@@ -71,7 +70,11 @@ if allValuesMatch == True :
   print('Passed: ' + TestName)
 else :
   raise RuntimeError('Failed: ' + TestName) from error
-cleanup()
+afterTest()
+
+#
+# Test
+#
 
 TestName = 'Should update a record with the same schema.'
 tableName = 'test'
@@ -95,13 +98,22 @@ if recordUpdated['g'] == '1a' :
   print('Passed: ' + TestName)
 else :
   raise RuntimeError('Failed: ' + TestName) from error
-cleanup()
+afterTest()
 
-# @TODO Test updating a record with a different schema.
+#
+# @TODO Test
+#
 
-# Should properly handle other types of data
+TestName = 'Should update a record with a different schema.'
 
-# @TODO Test deleting a record.
+#
+# @TODO Test
+#
 
-# @TODO Clean up test data.
-#cleanup()
+TestName = 'Should properly handle other types of data.'
+
+#
+# @TODO Test
+#
+
+TestName = 'Should delete a record.'
