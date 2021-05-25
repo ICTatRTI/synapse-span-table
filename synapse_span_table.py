@@ -2,14 +2,20 @@ import json.encoder
 import pandas as pd
 from synapseclient import Schema, Column, Table, Row, RowSet, as_table_columns, build_table, table
 
+# Span Table's regular table where knowledge of the Span Tables is stored.
 SPAN_TABLE_DEFINITIONS = 'span_table_definitions'
 
+# This method is required before using any other methods. It creates Span Table's table where knowledge of Span Tables are stored.
 def install_span_table(syn, projectName) :
     spanTableSchemasSynId = syn.findEntityId(SPAN_TABLE_DEFINITIONS, projectName)
     if spanTableSchemasSynId is None :
         schema = Schema(SPAN_TABLE_DEFINITIONS, [Column(name='tableName', columnType='LARGETEXT'), Column(name='spanTableDefinitions', columnType='LARGETEXT')], parent=projectName)
         table = syn.store(Table(schema, []))
         return table
+
+#
+# Table operations.
+#
 
 def get_span_table_definitions(syn, projectName, tableName) :
     spanTableDefinitionsSynId = syn.findEntityId(SPAN_TABLE_DEFINITIONS, projectName)
@@ -114,6 +120,10 @@ def update_span_table(syn, projectName, tableName, spanTableDefinitions, require
 def drop_span_table(syn, projectName, tableName):
     # @TODO
     return
+
+#
+# Record operations.
+#
 
 def create_span_table_record(syn, projectName, tableName, data):
     # Make sure all values are strings.
