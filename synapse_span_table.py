@@ -87,8 +87,12 @@ def update_span_table(syn, projectName, tableName, spanTableDefinitions, require
                     schema = syn.get(synId)
                     schema.addColumn(newColumn)
                     syn.store(schema)
+                    hadSuccess = True
                 except Exception as e :
-                    print(e)
+                    if 'Duplicate' in e :
+                        hadSuccess = True
+                    else :
+                        print(e)
     # All span tables filled up and still columns to add? Lets create some more span tables.
     while len(columnsToAdd) > 0 :
         # Add the span table to the definitions list.
