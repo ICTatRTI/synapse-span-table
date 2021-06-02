@@ -89,7 +89,8 @@ def update_span_table(syn, projectName, tableName, spanTableDefinitions, require
                     syn.store(schema)
                     hadSuccess = True
                 except Exception as e :
-                    if isinstance(e, str) and 'Duplicate' in e :
+                    if 'Duplicate' in str(e) :
+                        print('Duplicate column ' + columnName + ', skipping.')
                         hadSuccess = True
                     else :
                         print(e)
