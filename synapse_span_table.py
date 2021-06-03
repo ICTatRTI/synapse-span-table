@@ -148,7 +148,7 @@ class SynapseSpanTable:
     def create_span_table_record(self, tableName, data):
         # Make sure all values are strings.
         for key in data.keys():
-            data[key] = str(data[key][:self.MAX_STRING_LEN])
+            data[key] = str(data[key])[:self.MAX_STRING_LEN]
         # Store in base table first.
         row = {
             "id": data['id']
