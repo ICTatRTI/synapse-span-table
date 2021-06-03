@@ -67,7 +67,7 @@ class SynapseSpanTable:
         for spanTableDefinition in spanTableDefinitions:
             columns = []
             for column in spanTableDefinition['columns']:
-                columns.append(Column(name=column, columnType='LARGETEXT'))
+                columns.append(Column(name=column, columnType='LARGETEXT', maximumSize=self.MAX_STRING_LEN))
             schema = Schema(spanTableDefinition['spanTableName'],
                             columns,
                             parent=self.projectName)
@@ -88,7 +88,8 @@ class SynapseSpanTable:
             while len(spanTableDefinition['columns']) < columnLimit and len(columnsToAdd) > 0:
                 columnName = columnsToAdd.pop()
                 spanTableDefinition['columns'].append(columnName)
-                newColumn = self.syn.store(Column(name=columnName, columnType='LARGETEXT'))
+                newColumn = self.syn.store(Column(name=columnName, columnType='LARGETEXT',
+                                                  maximumSize=self.MAX_STRING_LEN))
                 synId = self.syn.findEntityId(spanTableDefinition['spanTableName'], self.projectName)
                 hadSuccess = False
                 while hadSuccess is False:
@@ -117,7 +118,7 @@ class SynapseSpanTable:
             # Now actually create the span table.
             columns = []
             for column in spanTableDefinition['columns']:
-                columns.append(Column(name=column, columnType='LARGETEXT'))
+                columns.append(Column(name=column, columnType='LARGETEXT', maximumSize=self.MAX_STRING_LEN))
             schema = Schema(spanTableDefinition['spanTableName'],
                             columns,
                             parent=self.projectName)
