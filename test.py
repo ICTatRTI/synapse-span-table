@@ -1,9 +1,7 @@
 import configparser
 import synapseclient
-from synapseclient import Project
-import json
 import os
-from synapse_span_table import flexsert_span_table_record, install_span_table, read_span_table_record
+from synapse_span_table import SynapseSpanTable
 
 # Config.
 config = configparser.ConfigParser()
@@ -54,11 +52,11 @@ data2 = {
   "i": "2",
   "j": "2"
 }
-install_span_table(syn, synProjectName)
-flexsert_span_table_record(syn, synProjectName, tableName, data1, columnLimit)
-flexsert_span_table_record(syn, synProjectName, tableName, data2, columnLimit)
-record1 = read_span_table_record(syn, synProjectName, tableName, data1['id'])
-record2 = read_span_table_record(syn, synProjectName, tableName, data2['id'])
+synapse_span_table = SynapseSpanTable(syn, synProjectName, tableName)
+synapse_span_table.flexsert_span_table_record(tableName, data1, columnLimit)
+synapse_span_table.flexsert_span_table_record(tableName, data2, columnLimit)
+record1 = synapse_span_table.read_span_table_record(tableName, data1['id'])
+record2 = synapse_span_table.read_span_table_record(tableName, data2['id'])
 allValuesMatch = True
 for key in data1.keys() :
   if record1[key] != data1[key] :
@@ -66,7 +64,7 @@ for key in data1.keys() :
 for key in data2.keys():
   if record2[key] != data2[key]:
     allValuesMatch = False
-if allValuesMatch == True :
+if allValuesMatch:
   print('Passed: ' + TestName)
 else :
   raise RuntimeError('Failed: ' + TestName) from error
@@ -89,11 +87,11 @@ data = {
   "f": "1",
   "g": "1"
 }
-install_span_table(syn, synProjectName)
-flexsert_span_table_record(syn, synProjectName, tableName, data, columnLimit)
+synapse_span_table = SynapseSpanTable(syn, synProjectName, tableName)
+synapse_span_table.flexsert_span_table_record(tableName, data, columnLimit)
 data['g'] = '1a'
-flexsert_span_table_record(syn, synProjectName, tableName, data, columnLimit)
-recordUpdated = read_span_table_record(syn, synProjectName, tableName, data['id'])
+synapse_span_table.flexsert_span_table_record(tableName, data, columnLimit)
+recordUpdated = synapse_span_table.read_span_table_record(tableName, data['id'])
 if recordUpdated['g'] == '1a' :
   print('Passed: ' + TestName)
 else :
