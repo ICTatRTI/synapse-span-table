@@ -7,10 +7,11 @@ class SynapseSpanTable:
     # Span Table's regular table where knowledge of the Span Tables is stored.
     SPAN_TABLE_DEFINITIONS = 'span_table_definitions'
 
-    def __init__(self, syn, projectName):
+    def __init__(self, syn, projectName, maxCellLength=200):
         self.syn = syn
         self.projectName = projectName
         self.install_span_table()
+        self.MAX_STRING_LEN = maxCellLength
 
     # This method is required before using any other methods. It creates Span Table's table where knowledge of Span Tables are stored.
     def install_span_table(self):
@@ -146,7 +147,7 @@ class SynapseSpanTable:
     def create_span_table_record(self, tableName, data):
         # Make sure all values are strings.
         for key in data.keys():
-            data[key] = str(data[key])
+            data[key] = str(data[key][:self.MAX_STRING_LEN])
         # Store in base table first.
         row = {
             "id": data['id']
