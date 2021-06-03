@@ -43,13 +43,13 @@ class SynapseSpanTable:
         baseTable = self.syn.store(Table(baseTableSchema, []))
         # Calculate span table definitions for this table.
         spanTableDefinitions = []
-        while len(requiredColumns) > 0 :
+        while len(requiredColumns) > 0:
             spanTableDefinition = {
                 "tableName": tableName,
                 "spanTableName": tableName + "_" + str(len(spanTableDefinitions) + 1),
                 "columns": ['id']
             }
-            while len(spanTableDefinition['columns']) < columnLimit and len(requiredColumns) > 0 :
+            while len(spanTableDefinition['columns']) < columnLimit and len(requiredColumns) > 0:
                 spanTableDefinition['columns'].append(requiredColumns.pop())
             spanTableDefinitions.append(spanTableDefinition)
         # Save the span table definitions.
@@ -80,7 +80,7 @@ class SynapseSpanTable:
         # Of the requiredColumns, figure out which ones need to be added given currentColumns.
         columnsToAdd = []
         for requiredColumn in requiredColumns:
-            if (requiredColumn not in currentColumns):
+            if requiredColumn not in currentColumns:
                 columnsToAdd.append(requiredColumn)
         # Fill up span tables with room with newColumns and update corresponding entry in spanTableDefinitions.
         for spanTableDefinition in spanTableDefinitions:
@@ -139,11 +139,9 @@ class SynapseSpanTable:
         # @TODO
         return
 
-
     #
     # Record operations.
     #
-
 
     def create_span_table_record(self, tableName, data):
         # Make sure all values are strings.
@@ -208,7 +206,7 @@ class SynapseSpanTable:
         self.create_span_table_record(tableName, data)
         return
 
-    def delete_span_table_record(self, tableName, id):
+    def delete_span_table_record(self, tableName, tableId):
         # First delete record in base table.
         # synId = self.syn.findEntityId(tableName, self.projectName)
         # row = self.syn.tableQuery("select * from " + synId + " where id='" + id + "'", resultsAs="rowset", limit=1)
@@ -217,7 +215,7 @@ class SynapseSpanTable:
         spanTableDefinitions = self.get_span_table_definitions(tableName)
         for spanTableDefinition in spanTableDefinitions:
             synId = self.syn.findEntityId(spanTableDefinition['spanTableName'], self.projectName)
-            row = self.syn.tableQuery("select * from " + synId + " where id='" + id + "'", resultsAs="rowset", limit=1)
+            row = self.syn.tableQuery("select * from " + synId + " where id='" + tableId + "'", resultsAs="rowset", limit=1)
             self.syn.delete(row)
         return
 
