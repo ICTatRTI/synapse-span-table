@@ -10,14 +10,10 @@ class SynapseSpanTable:
     def __init__(self, syn, projectName):
         self.syn = syn
         self.projectName = projectName
-
-    def __init__(self, syn, projectName, tableName):
-        self.syn = syn
-        self.projectName = projectName
-        self.install_span_table(tableName)
+        self.install_span_table()
 
     # This method is required before using any other methods. It creates Span Table's table where knowledge of Span Tables are stored.
-    def install_span_table(self, tableName):
+    def install_span_table(self):
         spanTableSchemasSynId = self.syn.findEntityId(self.SPAN_TABLE_DEFINITIONS, self.projectName)
         if spanTableSchemasSynId is None:
             schema = Schema(self.SPAN_TABLE_DEFINITIONS, [Column(name='tableName', columnType='LARGETEXT'),
