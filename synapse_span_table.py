@@ -6,14 +6,36 @@ from synapseclient import Schema, Column, Table, Row, RowSet, as_table_columns, 
 class SynapseSpanTable:
     # Span Table's regular table where knowledge of the Span Tables is stored.
     SPAN_TABLE_DEFINITIONS = 'span_table_definitions'
+    COLUMN_LIMIT = 152
+    QUEUE_TABLES = True
+    TABLE_QUEUES = {}
+    DOC_FLUSH_COUNT = 100
 
-    def __init__(self, syn, projectName, maxStringLength=200):
+    def __init__(self, syn, projectName, columnLimit=152, maxStringLength=200, queueTables=False, docFlushCount=100):
         self.syn = syn
         self.projectName = projectName
-        self.install_span_table()
         self.MAX_STRING_LEN = maxStringLength
+        self.QUEUE_TABLES = queueTables
+        self.COLUMN_LIMIT = columnLimit
+        self.DOC_FLUSH_COUNT = docFlushCount
 
-    # This method is required before using any other methods. It creates Span Table's table where knowledge of Span Tables are stored.
+        self.install_span_table()
+
+    def __dataframe_by_columns_intersection(self, dataframe, columns):
+        return dataframe.reindex(columns=dataframe.columns.intersection(columns)).ffill()
+
+    def __dataframe_by_columns_symmetric_difference(self, dataframe, columns):
+        return dataframe.reindex(columns=dataframe.columns.symmetric_difference(columns)).ffill()
+
+    def __dataframe_by_columns_union(self, dataframe, columns):
+        return dataframe.reindex(columns=dataframe.columns.union(columns)).ffill()
+
+    def __clear_span_table_queue(self):
+        self.QUEUE_TABLES = False
+        self.TABLE_QUEUES = {}
+
+    # This method is required before using any other methods.
+    # It creates Span Table's table where knowledge of Span Tables are stored.
     def install_span_table(self):
         spanTableSchemasSynId = self.syn.findEntityId(self.SPAN_TABLE_DEFINITIONS, self.projectName)
         if spanTableSchemasSynId is None:
@@ -36,12 +58,16 @@ class SynapseSpanTable:
             spanTableDefinitions = json.loads(row.rowset.rows[0].get('values')[1])
             return spanTableDefinitions
 
-    def create_span_table(self, tableName, requiredColumns, columnLimit):
-        # Create the base table.
+    def create_span_table_base_table(self, tableName):
         baseTableSchema = Schema(tableName,
                         [Column(name='id', columnType='LARGETEXT')],
                         parent=self.projectName)
-        baseTable = self.syn.store(Table(baseTableSchema, []))
+        self.syn.store(Table(baseTableSchema, []))
+
+    def create_span_table(self, tableName, requiredColumns):
+        # Create the base table.
+        self.create_span_table_base_table(tableName)
+
         # Calculate span table definitions for this table.
         spanTableDefinitions = []
         while len(requiredColumns) > 0:
@@ -50,7 +76,7 @@ class SynapseSpanTable:
                 "spanTableName": tableName + "_" + str(len(spanTableDefinitions) + 1),
                 "columns": ['id']
             }
-            while len(spanTableDefinition['columns']) < columnLimit and len(requiredColumns) > 0:
+            while len(spanTableDefinition['columns']) < self.COLUMN_LIMIT and len(requiredColumns) > 0:
                 spanTableDefinition['columns'].append(requiredColumns.pop())
             spanTableDefinitions.append(spanTableDefinition)
         # Save the span table definitions.
@@ -73,7 +99,7 @@ class SynapseSpanTable:
                             parent=self.projectName)
             table = self.syn.store(Table(schema, []))
 
-    def update_span_table(self, tableName, spanTableDefinitions, requiredColumns, columnLimit):
+    def update_span_table(self, tableName, spanTableDefinitions, requiredColumns):
         # Find all columns currently in definitions.
         currentColumns = []
         for spanTableDefinition in spanTableDefinitions:
@@ -85,7 +111,7 @@ class SynapseSpanTable:
                 columnsToAdd.append(requiredColumn)
         # Fill up span tables with room with newColumns and update corresponding entry in spanTableDefinitions.
         for spanTableDefinition in spanTableDefinitions:
-            while len(spanTableDefinition['columns']) < columnLimit and len(columnsToAdd) > 0:
+            while len(spanTableDefinition['columns']) < self.COLUMN_LIMIT and len(columnsToAdd) > 0:
                 columnName = columnsToAdd.pop()
                 spanTableDefinition['columns'].append(columnName)
                 newColumn = self.syn.store(Column(name=columnName, columnType='LARGETEXT',
@@ -112,7 +138,7 @@ class SynapseSpanTable:
                 "spanTableName": tableName + "_" + str(len(spanTableDefinitions) + 1),
                 "columns": ['id']
             }
-            while len(spanTableDefinition['columns']) < columnLimit and len(columnsToAdd) > 0:
+            while len(spanTableDefinition['columns']) < self.COLUMN_LIMIT and len(columnsToAdd) > 0:
                 spanTableDefinition['columns'].append(columnsToAdd.pop())
             spanTableDefinitions.append(spanTableDefinition)
             # Now actually create the span table.
@@ -145,11 +171,7 @@ class SynapseSpanTable:
     # Record operations.
     #
 
-    def create_span_table_record(self, tableName, data):
-        # Make sure all values are strings.
-        for key in data.keys():
-            data[key] = str(data[key])[:self.MAX_STRING_LEN]
-        # Store in base table first.
+    def insert_span_table_base_record(self, tableName, data):
         row = {
             "id": data['id']
         }
@@ -159,12 +181,21 @@ class SynapseSpanTable:
             row
         ])
         self.syn.store(Table(baseTableSchema, df))
+
+    def create_span_table_record(self, tableName, data):
+        # Make sure all values are strings.
+        for key in data.keys():
+            data[key] = str(data[key])[:self.MAX_STRING_LEN]
+
+        # Store in base table first.
+        self.insert_span_table_base_record(tableName, data)
+
         # Now trickle out into span tables.
         spanTableDefinitions = self.get_span_table_definitions(tableName)
         for spanTableDefinition in spanTableDefinitions:
             row = {}
             for columnName in spanTableDefinition['columns']:
-                if (columnName in data):
+                if columnName in data:
                     row[columnName] = data[columnName]
                 else:
                     row[columnName] = ''
@@ -229,11 +260,62 @@ class SynapseSpanTable:
             self.create_span_table_record(tableName, data)
         return
 
-    def flexsert_span_table_record(self, tableName, data, columnLimit=152):
+    def queue_upsert_span_table_record(self, tableName, data):
+        self.QUEUE_TABLES = True
+        self.upsert_span_table_record(tableName, data)
+
+    def flexsert_span_table_record(self, tableName, data):
         requiredColumns = list(set(list(data.keys())) - set(['id']))
         spanTableDefinitions = self.get_span_table_definitions(tableName)
         if spanTableDefinitions:
-            self.update_span_table(tableName, spanTableDefinitions, requiredColumns, columnLimit)
+            self.update_span_table(tableName, spanTableDefinitions, requiredColumns)
         else:
-            self.create_span_table(tableName, requiredColumns, columnLimit)
+            self.create_span_table(tableName, requiredColumns)
         self.upsert_span_table_record(tableName, data)
+
+    def queue_span_table_record(self, tableName, data):
+        self.QUEUE_TABLES = True
+        df = pd.DataFrame([data])
+        try:
+            spanTableDf = self.TABLE_QUEUES[tableName]
+            spanTableDf = spanTableDf.append(df)
+        except KeyError:
+            spanTableDf = df
+            self.create_span_table_base_table(tableName)
+
+        # Store id in base table
+        self.insert_span_table_base_record(tableName, data)
+
+        # Cache data in TABLE_QUEUES
+        self.TABLE_QUEUES[tableName] = spanTableDf
+
+    def flush_span_table(self, tableName):
+        try:
+            df = self.TABLE_QUEUES[tableName]
+        except KeyError:
+            print('No table named {}').format(tableName)
+            return
+
+        requiredColumns = list(set(list(df.columns)) - set(['id']))
+        spanTableDefinitions = self.get_span_table_definitions(tableName)
+        if spanTableDefinitions:
+            self.update_span_table(tableName, spanTableDefinitions, requiredColumns)
+        else:
+            self.create_span_table(tableName, requiredColumns)
+
+        spanTableDefinitions = self.get_span_table_definitions(tableName)
+        for idx in range(len(spanTableDefinitions)):
+            spanTableName = tableName + "_" + str(idx + 1)
+            synId = self.syn.findEntityId(spanTableName, self.projectName)
+            tableSchema = self.syn.get(synId)
+            cols = self.syn.getTableColumns(tableSchema)
+            colNames = []
+            for column in cols:
+                colNames.append(column.name)
+            tableData = self.__dataframe_by_columns_intersection(df, colNames)
+            self.syn.store(Table(tableSchema, tableData))
+
+    def flush_span_tables(self):
+        for table in self.TABLE_QUEUES:
+            self.flush_span_table(table)
+        self.TABLE_QUEUES.clear()
