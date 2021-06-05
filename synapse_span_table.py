@@ -65,12 +65,7 @@ class SynapseSpanTable:
         self.syn.store(Table(baseTableSchema, []))
 
     def get_span_table_column_type(self, df, col):
-        maxStrLen = df[col].str.len().max()
-        if maxStrLen > 1000:
-            return 'LARGETEXT'
-        else:
-            # change it so the column size is long enough for our needs
-            return 'STRING'
+        return 'STRING'
 
     def create_span_table(self, tableName, requiredColumns, df):
         # Create the base table.
