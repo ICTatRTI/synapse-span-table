@@ -118,7 +118,7 @@ class SynapseSpanTable:
             while len(spanTableDefinition['columns']) < self.COLUMN_LIMIT and len(columnsToAdd) > 0:
                 columnName = columnsToAdd.pop()
                 spanTableDefinition['columns'].append(columnName)
-                columnType = self.get_span_table_column_type(df, column)
+                columnType = self.get_span_table_column_type(df, columnName)
                 newColumn = self.syn.store(Column(name=columnName, columnType=columnType))
                 synId = self.syn.findEntityId(spanTableDefinition['spanTableName'], self.projectName)
                 hadSuccess = False
