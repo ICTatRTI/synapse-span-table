@@ -3,6 +3,11 @@ import synapseclient
 import os
 from synapse_span_table import SynapseSpanTable
 
+MAX_STRING_LEN = 50
+TABLE_PREFIX = 'arc_mnh_'
+tableName = TABLE_PREFIX + 'test'
+columnLimit = 3
+
 # Config.
 config = configparser.ConfigParser()
 config.read(os.path.join(os.getcwd(), 'config.ini'))
@@ -10,12 +15,12 @@ config.sections()
 
 # Connect to Synapse.
 syn = synapseclient.Synapse()
-synProjectName= config['SYNAPSE']['ProjectName']
-synUserName= config['SYNAPSE']['UserName']
-apiKey= config['SYNAPSE']['apiKey']
+synProjectName = config['SYNAPSE']['ProjectName']
+synUserName = config['SYNAPSE']['UserName']
+apiKey = config['SYNAPSE']['apiKey']
 syn.login(email=synUserName, apiKey=apiKey)
 
-def afterTest() :
+def afterTest():
   global syn
   global synProjectName
   children = syn.getChildren(synProjectName)
@@ -26,8 +31,6 @@ def afterTest() :
 # Queue records with different schema in the same table then flush
 #
 TestName = 'Queue records with different schema in the same table then flush'
-tableName = 'test'
-columnLimit = 3
 data1 = {
   "id": "1",
   "a": "1",
@@ -60,15 +63,15 @@ record1 = synapse_span_table.read_span_table_record(tableName, data1['id'])
 record2 = synapse_span_table.read_span_table_record(tableName, data2['id'])
 allValuesMatch = True
 for key in data1.keys() :
-  if record1[key] != data1[key] :
+  if record1[key][:MAX_STRING_LEN] != data1[key][:MAX_STRING_LEN]:
     allValuesMatch = False
 for key in data2.keys():
-  if record2[key] != data2[key]:
+  if record2[key][:MAX_STRING_LEN] != data2[key][:MAX_STRING_LEN]:
     allValuesMatch = False
 if allValuesMatch:
   print('Passed: ' + TestName)
 else :
-  raise RuntimeError('Failed: ' + TestName) from error
+  raise RuntimeError('Failed: ' + TestName)
 afterTest()
 
 
@@ -77,8 +80,6 @@ afterTest()
 #
 
 TestName = 'Queue the same record with different schema in the same table then flush'
-tableName = 'test'
-columnLimit = 3
 data = {
   "id": "1",
   "a": "1",
@@ -99,7 +100,7 @@ recordUpdated = synapse_span_table.read_span_table_record(tableName, data['id'])
 if recordUpdated['g'] == '1a' :
   print('Passed: ' + TestName)
 else :
-  raise RuntimeError('Failed: ' + TestName) from error
+  raise RuntimeError('Failed: ' + TestName)
 afterTest()
 
 #
@@ -107,8 +108,6 @@ afterTest()
 #
 
 TestName = 'Insert records with different schemas into the same table.'
-tableName = 'test'
-columnLimit = 3
 data1 = {
   "id": "1",
   "a": "1",
@@ -139,15 +138,15 @@ record1 = synapse_span_table.read_span_table_record(tableName, data1['id'])
 record2 = synapse_span_table.read_span_table_record(tableName, data2['id'])
 allValuesMatch = True
 for key in data1.keys() :
-  if record1[key] != data1[key] :
+  if record1[key][:MAX_STRING_LEN] != data1[key][:MAX_STRING_LEN]:
     allValuesMatch = False
 for key in data2.keys():
-  if record2[key] != data2[key]:
+  if record2[key][:MAX_STRING_LEN] != data2[key][:MAX_STRING_LEN]:
     allValuesMatch = False
 if allValuesMatch:
   print('Passed: ' + TestName)
 else :
-  raise RuntimeError('Failed: ' + TestName) from error
+  raise RuntimeError('Failed: ' + TestName)
 afterTest()
 
 #
@@ -155,8 +154,6 @@ afterTest()
 #
 
 TestName = 'Update a record with the same schema.'
-tableName = 'test'
-columnLimit = 3
 data = {
   "id": "1",
   "a": "1",
@@ -175,7 +172,7 @@ recordUpdated = synapse_span_table.read_span_table_record(tableName, data['id'])
 if recordUpdated['g'] == '1a' :
   print('Passed: ' + TestName)
 else :
-  raise RuntimeError('Failed: ' + TestName) from error
+  raise RuntimeError('Failed: ' + TestName)
 afterTest()
 
 #
