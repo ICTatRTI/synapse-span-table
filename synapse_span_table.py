@@ -181,20 +181,15 @@ class SynapseSpanTable:
     # Record operations.
     #
 
-    def insert_span_table_base_record(self, tableName, data):
-        row = {
-            "id": data['id']
-        }
+    def insert_span_table_base_record(self, tableName, recordId):
         synId = self.syn.findEntityId(tableName, self.projectName)
         baseTableSchema = self.syn.get(synId)
-        df = pd.DataFrame([
-            row
-        ])
+        df = pd.DataFrame([{'id': recordId}])
         self.syn.store(Table(baseTableSchema, df))
 
     def create_span_table_record(self, tableName, df):
         # Store the doc ID in base table first.
-        self.insert_span_table_base_record(tableName, df)
+        self.insert_span_table_base_record(tableName, df['id'][0])
 
         # Now trickle out into span tables.
         spanTableDefinitions = self.get_span_table_definitions(tableName)
@@ -205,18 +200,18 @@ class SynapseSpanTable:
             self.syn.store(Table(spanTableSchema, spanTableDf))
         return
 
-    def exists_span_table_record(self, tableName, id):
+    def exists_span_table_record(self, tableName, recordId):
         synId = self.syn.findEntityId(tableName, self.projectName)
-        row = self.syn.tableQuery("select * from " + synId + " where id='" + id + "'",
+        row = self.syn.tableQuery("select * from " + synId + " where id='" + recordId + "'",
                                   resultsAs="rowset", limit=1)
         if row.count == 0:
             return False
         else:
             return True
 
-    def read_span_table_record(self, tableName, id):
+    def read_span_table_record(self, tableName, recordId):
         synId = self.syn.findEntityId(tableName, self.projectName)
-        query = self.syn.tableQuery("select * from " + synId + " where id='" + id + "'", resultsAs="rowset", limit=1)
+        query = self.syn.tableQuery("select * from " + synId + " where id='" + recordId + "'", resultsAs="rowset", limit=1)
         if query.count == 0:
             return None
         else:
@@ -224,7 +219,7 @@ class SynapseSpanTable:
             spanTableDefinitions = self.get_span_table_definitions(tableName)
             for spanTableDefinition in spanTableDefinitions:
                 synId = self.syn.findEntityId(spanTableDefinition['spanTableName'], self.projectName)
-                query = self.syn.tableQuery("select * from " + synId + " where id='" + id + "'", resultsAs="rowset",
+                query = self.syn.tableQuery("select * from " + synId + " where id='" + recordId + "'", resultsAs="rowset",
                                             limit=1)
                 if query.count > 0:
                     row = query.rowset.rows[0]
@@ -233,11 +228,12 @@ class SynapseSpanTable:
             return data
 
     def update_span_table_record(self, tableName, df):
-        self.delete_span_table_record(tableName, df['id'][0])
+        recordId = df['id'][0]
+        self.delete_span_table_record(tableName, recordId)
         self.create_span_table_record(tableName, df)
         return
 
-    def delete_span_table_record(self, tableName, tableId):
+    def delete_span_table_record(self, tableName, recordId):
         # First delete record in base table.
         # synId = self.syn.findEntityId(tableName, self.projectName)
         # row = self.syn.tableQuery("select * from " + synId + " where id='" + id + "'", resultsAs="rowset", limit=1)
@@ -246,14 +242,16 @@ class SynapseSpanTable:
         spanTableDefinitions = self.get_span_table_definitions(tableName)
         for spanTableDefinition in spanTableDefinitions:
             synId = self.syn.findEntityId(spanTableDefinition['spanTableName'], self.projectName)
-            row = self.syn.tableQuery("select * from " + synId + " where id='" + tableId + "'",
+            row = self.syn.tableQuery("select * from " + synId + " where id='" + recordId + "'",
                                       resultsAs="rowset", limit=1)
             self.syn.delete(row)
         return
 
     def upsert_span_table_record(self, tableName, data):
-        exists = self.exists_span_table_record(tableName, data['id'])
         df = self.__get_cleaned_data_in_dataframe(data)
+
+        recordId = df['id'][0]
+        exists = self.exists_span_table_record(tableName, recordId)
         if exists is True:
             self.update_span_table_record(tableName, df)
         else:
@@ -282,7 +280,7 @@ class SynapseSpanTable:
             self.create_span_table_base_table(tableName)
 
         # Store id in base table
-        self.insert_span_table_base_record(tableName, data)
+        self.insert_span_table_base_record(tableName, df['id'][0])
 
         # Cache data in TABLE_QUEUES
         self.TABLE_QUEUES[tableName] = spanTableDf
