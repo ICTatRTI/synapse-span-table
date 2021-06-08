@@ -10,7 +10,7 @@ class SynapseSpanTable:
     QUEUE_TABLES = True
     TABLE_QUEUES = {}
     DOC_FLUSH_COUNT = 100
-    FLUSH_BYTE_LIMIT = 5000000 # 5 MB
+    FLUSH_BYTE_LIMIT = 10000
 
     def __init__(self, syn, projectName, columnLimit=152, maxStringLength=50, queueTables=False, docFlushCount=100):
         self.syn = syn
