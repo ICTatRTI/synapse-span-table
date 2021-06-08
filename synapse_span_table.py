@@ -287,7 +287,7 @@ class SynapseSpanTable:
         if self.TABLE_QUEUES[tableName].memory_usage(index=True).sum() >= self.FLUSH_BYTE_LIMIT:
             print('Immediately flushing table over %d bytes' % self.FLUSH_BYTE_LIMIT)
             self.flush_span_table(tableName)
-            self.TABLE_QUEUES[tableName].clear()
+            del self.TABLE_QUEUES[tableName]
 
     def flush_span_table(self, tableName):
         try:
