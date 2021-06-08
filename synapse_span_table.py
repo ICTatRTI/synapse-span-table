@@ -288,6 +288,7 @@ class SynapseSpanTable:
     def flush_span_table(self, tableName):
         try:
             df = self.TABLE_QUEUES[tableName]
+            print('Flushing %d docs in %s' % (len(df.index), tableName))
         except KeyError:
             print('No table named {}').format(tableName)
             return
