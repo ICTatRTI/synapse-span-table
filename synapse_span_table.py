@@ -5,7 +5,6 @@ from synapseclient import Schema, Column, Table, Row, RowSet, as_table_columns, 
 
 class SynapseSpanTable:
     # Span Table's regular table where knowledge of the Span Tables is stored.
-    SPAN_TABLE_DEFINITIONS = 'span_table_definitions'
     COLUMN_LIMIT = 152
     MAX_STRING_LEN = 50
     QUEUE_TABLES = True
@@ -19,8 +18,6 @@ class SynapseSpanTable:
         self.QUEUE_TABLES = queueTables
         self.COLUMN_LIMIT = columnLimit
         self.DOC_FLUSH_COUNT = docFlushCount
-
-        self.install_span_table()
 
     def __dataframe_by_columns_intersection(self, dataframe, columns):
         return dataframe.reindex(columns=dataframe.columns.intersection(columns)).ffill()
@@ -38,31 +35,11 @@ class SynapseSpanTable:
 
     def __clear_span_table_queue(self):
         self.QUEUE_TABLES = False
-        self.TABLE_QUEUES = {}
-
-    # This method is required before using any other methods.
-    # It creates Span Table's table where knowledge of Span Tables are stored.
-    def install_span_table(self):
-        spanTableSchemasSynId = self.syn.findEntityId(self.SPAN_TABLE_DEFINITIONS, self.projectName)
-        if spanTableSchemasSynId is None:
-            schema = Schema(self.SPAN_TABLE_DEFINITIONS, [Column(name='tableName', columnType='STRING'),
-                                                          Column(name='spanTableDefinitions', columnType='LARGETEXT')],
-                            parent=self.projectName)
-            return self.syn.store(Table(schema, []))
+        self.TABLE_QUEUES.clear()
 
     #
-    # Table operations.
+    # Base Table operations.
     #
-
-    def get_span_table_definitions(self, tableName):
-        spanTableDefinitionsSynId = self.syn.findEntityId(self.SPAN_TABLE_DEFINITIONS, self.projectName)
-        row = self.syn.tableQuery("select * from " + spanTableDefinitionsSynId + " where tableName='" + tableName + "'",
-                                  resultsAs="rowset", limit=1)
-        if row.count == 0:
-            return None
-        else:
-            spanTableDefinitions = json.loads(row.rowset.rows[0].get('values')[1])
-            return spanTableDefinitions
 
     def create_span_table_base_table(self, tableName):
         baseTableSchema = Schema(tableName,
@@ -70,117 +47,16 @@ class SynapseSpanTable:
                         parent=self.projectName)
         self.syn.store(Table(baseTableSchema, []))
 
-    def get_span_table_column_type(self, df, col):
-        return 'STRING'
+        # this may be faster
+        #response_table_df = pd.DataFrame([{'id': respid}])
+        #table = synapseclient.table.build_table(tableName, self.projectName, response_table_df)
+        #syn.store(table)
 
-    def create_span_table(self, tableName, requiredColumns, df):
-        # Create the base table.
-        self.create_span_table_base_table(tableName)
-
-        # Calculate span table definitions for this table.
-        spanTableDefinitions = []
-        while len(requiredColumns) > 0:
-            spanTableDefinition = {
-                "tableName": tableName,
-                "spanTableName": tableName + "_" + str(len(spanTableDefinitions) + 1),
-                "columns": ['id']
-            }
-            while len(spanTableDefinition['columns']) < self.COLUMN_LIMIT and len(requiredColumns) > 0:
-                spanTableDefinition['columns'].append(requiredColumns.pop())
-            spanTableDefinitions.append(spanTableDefinition)
-        # Save the span table definitions.
-        spanTableDefinitionsSynId = self.syn.findEntityId(self.SPAN_TABLE_DEFINITIONS, self.projectName)
-        spanTableDefinitionsSchema = self.syn.get(spanTableDefinitionsSynId)
-        data = pd.DataFrame([
-            {
-                "tableName": tableName,
-                "spanTableDefinitions": json.dumps(spanTableDefinitions)
-            }
-        ])
-        self.syn.store(Table(spanTableDefinitionsSchema, data))
-
-        # Create the span tables from the definitions.
-        for spanTableDefinition in spanTableDefinitions:
-            columns = []
-            for column in spanTableDefinition['columns']:
-                columnType = self.get_span_table_column_type(df, column)
-                columns.append(Column(name=column, columnType=columnType))
-            schema = Schema(spanTableDefinition['spanTableName'],
-                            columns,
-                            parent=self.projectName)
-            self.syn.store(Table(schema, []))
-
-    def update_span_table(self, tableName, spanTableDefinitions, requiredColumns, df):
-        # Find all columns currently in definitions.
-        currentColumns = []
-        for spanTableDefinition in spanTableDefinitions:
-            currentColumns = currentColumns + spanTableDefinition['columns']
-        # Of the requiredColumns, figure out which ones need to be added given currentColumns.
-        columnsToAdd = []
-        for requiredColumn in requiredColumns:
-            if requiredColumn not in currentColumns:
-                columnsToAdd.append(requiredColumn)
-        # Fill up span tables with room with newColumns and update corresponding entry in spanTableDefinitions.
-        for spanTableDefinition in spanTableDefinitions:
-            while len(spanTableDefinition['columns']) < self.COLUMN_LIMIT and len(columnsToAdd) > 0:
-                columnName = columnsToAdd.pop()
-                spanTableDefinition['columns'].append(columnName)
-                columnType = self.get_span_table_column_type(df, columnName)
-                newColumn = self.syn.store(Column(name=columnName, columnType=columnType))
-                synId = self.syn.findEntityId(spanTableDefinition['spanTableName'], self.projectName)
-                hadSuccess = False
-                while hadSuccess is False:
-                    try:
-                        schema = self.syn.get(synId)
-                        schema.addColumn(newColumn)
-                        self.syn.store(schema)
-                        hadSuccess = True
-                    except Exception as e:
-                        if 'Duplicate' in str(e):
-                            print('Duplicate column ' + columnName + ', skipping.')
-                            hadSuccess = True
-                        else:
-                            print(e)
-        # All span tables filled up and still columns to add? Lets create some more span tables.
-        while len(columnsToAdd) > 0:
-            # Add the span table to the definitions list.
-            spanTableDefinition = {
-                "tableName": tableName,
-                "spanTableName": tableName + "_" + str(len(spanTableDefinitions) + 1),
-                "columns": ['id']
-            }
-            while len(spanTableDefinition['columns']) < self.COLUMN_LIMIT and len(columnsToAdd) > 0:
-                spanTableDefinition['columns'].append(columnsToAdd.pop())
-            spanTableDefinitions.append(spanTableDefinition)
-            # Now actually create the span table.
-            columns = []
-            for column in spanTableDefinition['columns']:
-                columns.append(Column(name=column, columnType='LARGETEXT'))
-            schema = Schema(spanTableDefinition['spanTableName'],
-                            columns,
-                            parent=self.projectName)
-            self.syn.store(Table(schema, []))
-        # Save updated spanTableDefinitions to SPAN_TABLE_DEFINITIONS table.
-        spanTableDefinitionsSynId = self.syn.findEntityId(self.SPAN_TABLE_DEFINITIONS, self.projectName)
-        row = self.syn.tableQuery("select * from " + spanTableDefinitionsSynId + " where tableName='" + tableName + "'",
+    def delete_span_table_base_table_record(self, tableName, recordId):
+        synId = self.syn.findEntityId(tableName, self.projectName)
+        row = self.syn.tableQuery("select * from " + synId + " where id='" + recordId + "'",
                                   resultsAs="rowset", limit=1)
         self.syn.delete(row)
-        spanTableDefinitionsSchema = self.syn.get(spanTableDefinitionsSynId)
-        data = pd.DataFrame([
-            {
-                "tableName": tableName,
-                "spanTableDefinitions": json.dumps(spanTableDefinitions)
-            }
-        ])
-        self.syn.store(Table(spanTableDefinitionsSchema, data))
-
-    def drop_span_table(self, tableName):
-        # @TODO
-        return
-
-    #
-    # Record operations.
-    #
 
     def insert_span_table_base_table_records(self, tableName, df):
         synId = self.syn.findEntityId(tableName, self.projectName)
@@ -193,18 +69,96 @@ class SynapseSpanTable:
         df = pd.DataFrame([{'id': recordId}])
         self.syn.store(Table(baseTableSchema, df))
 
+    #
+    # Record operations.
+    #
+
+    # create the table with the metadata
+    def create_span_table_record_table(self, tableName, df, index=1):
+        if len(df.columns) > self.COLUMN_LIMIT:
+            # safeguard adding too many columns
+            df = df.iloc[:, [0, self.COLUMN_LIMIT]]
+
+        print('Creating response form data table: %s_%d' % (tableName, index))
+        table_name = tableName + "_" + str(index)
+        columns = []
+        for column in df.columns:
+            columns.append(Column(name=column, columnType='STRING'))
+        schema = Schema(table_name, columns, parent=self.projectName)
+        self.syn.store(Table(schema, df))
+
+        # return the columns that were used
+        return df.columns
+
+    def add_response_data_to_tables(self, tableName, df):
+        # put the response data into a pandas dataframe for easy manipulation
+        full_df = df
+        metadata_df = pd.DataFrame(full_df['id'])
+        response_df = df.drop('id', 1)
+
+        table = None
+        table_index = 0
+        unused_columns = response_df.columns
+        while len(unused_columns) > 0:
+            # Loop through the tables, adding data to existing full tables in place
+            table_index += 1
+            table_name = tableName + "_" + str(table_index)
+            synID = self.syn.findEntityId(table_name, self.projectName)
+            try:
+                # get the synapse columns for the table current table
+                schema = self.syn.get(synID)
+                print("Updating response form table: %s" % schema.name)
+                cols = self.syn.getTableColumns(schema)
+                colNames = []
+                for column in cols:
+                    colNames.append(column.name)
+                table_columns = len(colNames)
+                # use pandas to split the new df with only the columns in table
+                # table_df has the columns for this table including metadata
+                table_df = self.__dataframe_by_columns_intersection(full_df, colNames)
+                unused_columns = list(set(unused_columns) - set(table_df.columns))
+
+                if len(unused_columns) > 0 and table_columns < self.COLUMN_LIMIT:
+                    # doing some math here
+                    # the existing table data takes up the first x columns
+                    # so the new_table_df should be at most self.COLUMN_LIMIT minus the number of existing columns
+                    lst_idx = self.COLUMN_LIMIT - table_columns
+                    unused_df = self.__dataframe_by_columns_intersection(response_df,
+                                                                         unused_columns[:lst_idx])
+                    columns = []
+                    for column in unused_columns[:lst_idx]:
+                        columns.append(Column(name=column, columnType='STRING'))
+                    schema.addColumns(columns)
+                    schema = self.syn.store(schema)
+                    table_df = table_df.join(unused_df)
+                    unused_columns = list(set(unused_columns) - set(table_df.columns))
+
+                # store the table: it is either full or there are no more unused columns
+                self.syn.store(Table(schema, table_df))
+
+            except TypeError:
+                if synID is None:
+                    # doing some math here
+                    # the metadata takes up the first x columns
+                    # so the new_table_df should be at most self.COLUMN_LIMIT minus the number of metadata columns
+
+                    lst_idx = self.COLUMN_LIMIT - len(metadata_df.columns)
+                    columns = list(metadata_df.columns) + list(unused_columns[:lst_idx])
+                    new_table_df = self.__dataframe_by_columns_intersection(full_df, columns)
+                    used_columns = self.create_span_table_record_table(tableName, new_table_df, table_index)
+                    unused_columns = list(set(unused_columns) - set(used_columns))
+                    continue
+                else:
+                    raise TypeError
+
+        return
+
     def create_span_table_record(self, tableName, df):
         # Store the doc ID in base table first.
         self.insert_span_table_base_record(tableName, df['id'][0])
 
         # Now trickle out into span tables.
-        spanTableDefinitions = self.get_span_table_definitions(tableName)
-        for spanTableDefinition in spanTableDefinitions:
-            synId = self.syn.findEntityId(spanTableDefinition['spanTableName'], self.projectName)
-            spanTableSchema = self.syn.get(synId)
-            spanTableDf = self.__dataframe_by_columns_intersection(df, spanTableDefinition['columns'])
-            self.syn.store(Table(spanTableSchema, spanTableDf))
-        return
+        self.add_response_data_to_tables(tableName, df)
 
     def exists_span_table_record(self, tableName, recordId):
         synId = self.syn.findEntityId(tableName, self.projectName)
@@ -222,15 +176,31 @@ class SynapseSpanTable:
             return None
         else:
             data = {}
-            spanTableDefinitions = self.get_span_table_definitions(tableName)
-            for spanTableDefinition in spanTableDefinitions:
-                synId = self.syn.findEntityId(spanTableDefinition['spanTableName'], self.projectName)
-                query = self.syn.tableQuery("select * from " + synId + " where id='" + recordId + "'", resultsAs="rowset",
-                                            limit=1)
-                if query.count > 0:
-                    row = query.rowset.rows[0]
-                    for headerDefinition in query.rowset.headers:
-                        data[headerDefinition.name] = row['values'].pop(0)
+            table_index = 1
+            table_name = tableName + "_" + str(table_index)
+            synID = self.syn.findEntityId(table_name, self.projectName)
+            while synID is not None:
+                # Loop through the tables, adding data to existing full tables in place
+                try:
+                    # get the synapse columns for the table current table
+                    query = self.syn.tableQuery("select * from " + synID + " where id='" + recordId + "'",
+                                         resultsAs="rowset", limit=1)
+                    if query.count > 0:
+                        row = query.rowset.rows[0]
+                        for headerDefinition in query.rowset.headers:
+                            try:
+                                data[headerDefinition.name] = row['values'].pop(0)
+                            except IndexError:
+                                data[headerDefinition.name] = ''
+                    table_index += 1
+                    table_name = tableName + "_" + str(table_index)
+                    synID = self.syn.findEntityId(table_name, self.projectName)
+                except TypeError:
+                    if synID is None:
+                        break
+                    else:
+                        raise TypeError
+
             return data
 
     def update_span_table_record(self, tableName, df):
@@ -240,17 +210,27 @@ class SynapseSpanTable:
         return
 
     def delete_span_table_record(self, tableName, recordId):
-        # First delete record in base table.
-        # synId = self.syn.findEntityId(tableName, self.projectName)
-        # row = self.syn.tableQuery("select * from " + synId + " where id='" + id + "'", resultsAs="rowset", limit=1)
-        # self.syn.delete(row)
-        # Now delete record in span tables.
-        spanTableDefinitions = self.get_span_table_definitions(tableName)
-        for spanTableDefinition in spanTableDefinitions:
-            synId = self.syn.findEntityId(spanTableDefinition['spanTableName'], self.projectName)
-            row = self.syn.tableQuery("select * from " + synId + " where id='" + recordId + "'",
-                                      resultsAs="rowset", limit=1)
-            self.syn.delete(row)
+        # delete record in span tables.
+        table_index = 1
+        table_name = tableName + "_" + str(table_index)
+        synID = self.syn.findEntityId(table_name, self.projectName)
+        while synID is not None:
+            # Loop through the tables, adding data to existing full tables in place
+            try:
+                # get the synapse columns for the table current table
+                row = self.syn.tableQuery("select * from " + synID + " where id='" + recordId + "'",
+                                          resultsAs="rowset", limit=1)
+                print('Existing form response is being deleted then updated in response form data table: %s'
+                      % tableName + "_" + str(table_index))
+                self.syn.delete(row)
+                table_index += 1
+                table_name = tableName + "_" + str(table_index)
+                synID = self.syn.findEntityId(table_name, self.projectName)
+            except TypeError:
+                if synID is None:
+                    break
+                else:
+                    raise TypeError
         return
 
     def upsert_span_table_record(self, tableName, data):
@@ -268,12 +248,27 @@ class SynapseSpanTable:
         df = self.__get_cleaned_data_in_dataframe(data)
         requiredColumns = list(df.drop('id', 1).columns)
 
-        spanTableDefinitions = self.get_span_table_definitions(tableName)
-        if spanTableDefinitions:
-            self.update_span_table(tableName, spanTableDefinitions, requiredColumns, df)
+        respid = data.get('id')
+
+
+        # get the list of known response tables
+        table_name = tableName
+        synID = self.syn.findEntityId(table_name, self.projectName)
+        if synID is None:
+            # this is the first upload of a form of this response type
+            print('First upload of response type with table name: %s' % tableName)
+            self.create_span_table_base_table(tableName)
         else:
-            self.create_span_table(tableName, requiredColumns, df)
-        self.upsert_span_table_record(tableName, data)
+            schema = self.syn.get(synID)
+
+        # check to see if the record already exists, if it does, do an update, otherwise do an add
+        if not self.exists_span_table_record(tableName, respid):
+            self.insert_span_table_base_record(tableName, respid)
+        else:
+            # this is an update to an existing entry - delete it in all tables
+            self.delete_span_table_record(tableName, respid)
+
+        self.add_response_data_to_tables(tableName, df)
 
     def queue_span_table_record(self, tableName, data):
         self.QUEUE_TABLES = True
@@ -284,9 +279,6 @@ class SynapseSpanTable:
         except KeyError:
             spanTableDf = df
             self.create_span_table_base_table(tableName)
-
-        # Store id in base table
-        #self.insert_span_table_base_record(tableName, df['id'][0])
 
         # Cache data in TABLE_QUEUES
         self.TABLE_QUEUES[tableName] = spanTableDf
@@ -299,28 +291,12 @@ class SynapseSpanTable:
             print('No table named {}').format(tableName)
             return
 
-        requiredColumns = list(df.drop('id', 1).columns)
-        spanTableDefinitions = self.get_span_table_definitions(tableName)
-        if spanTableDefinitions:
-            self.update_span_table(tableName, spanTableDefinitions, requiredColumns, df)
-        else:
-            self.create_span_table(tableName, requiredColumns, df)
-
         # Store ids in base table
         idRecordsDf = self.__dataframe_by_columns_intersection(df, ['id'])
         self.insert_span_table_base_table_records(tableName, idRecordsDf)
 
-        spanTableDefinitions = self.get_span_table_definitions(tableName)
-        for idx in range(len(spanTableDefinitions)):
-            spanTableName = tableName + "_" + str(idx + 1)
-            synId = self.syn.findEntityId(spanTableName, self.projectName)
-            tableSchema = self.syn.get(synId)
-            cols = self.syn.getTableColumns(tableSchema)
-            colNames = []
-            for column in cols:
-                colNames.append(column.name)
-            tableData = self.__dataframe_by_columns_intersection(df, colNames)
-            self.syn.store(Table(tableSchema, tableData))
+        # store records in record tables
+        self.add_response_data_to_tables(tableName, df)
 
     def flush_span_tables(self):
         for table in self.TABLE_QUEUES:
