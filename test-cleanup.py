@@ -16,4 +16,5 @@ project = syn.get(synProjectName)
 
 children = syn.getChildren(synProjectName)
 for entity in children :
+    print('deleting %s' % entity['id'])
     syn.delete(entity['id'])
