@@ -10,7 +10,7 @@ class SynapseSpanTable:
     QUEUE_TABLES = True
     TABLE_QUEUES = {}
     DOC_FLUSH_COUNT = 100
-    FLUSH_BYTE_LIMIT = 10000
+    FLUSH_BYTE_LIMIT = 100000
 
     def __init__(self, syn, projectName, columnLimit=152, maxStringLength=50, queueTables=False, docFlushCount=100):
         self.syn = syn
@@ -287,6 +287,7 @@ class SynapseSpanTable:
         if self.TABLE_QUEUES[tableName].memory_usage(index=True).sum() >= self.FLUSH_BYTE_LIMIT:
             print('Immediately flushing table over %d bytes' % self.FLUSH_BYTE_LIMIT)
             self.flush_span_table(tableName)
+            self.TABLE_QUEUES[tableName].clear()
 
     def flush_span_table(self, tableName):
         try:
