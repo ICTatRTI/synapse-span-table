@@ -288,6 +288,7 @@ class SynapseSpanTable:
             print('Immediately flushing table over %d bytes' % self.FLUSH_BYTE_LIMIT)
             self.flush_span_table(tableName)
             del self.TABLE_QUEUES[tableName]
+            self.TABLE_QUEUES[tableName] = pd.DataFrame()
 
     def flush_span_table(self, tableName):
         try:
