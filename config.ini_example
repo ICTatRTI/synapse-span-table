@@ -1,4 +1,3 @@
 [SYNAPSE]
-username = foo@foo.com 
-apikey = asdf 
+authToken = asdf 
 projectname = syn12345 

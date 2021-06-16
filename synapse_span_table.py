@@ -277,6 +277,8 @@ class SynapseSpanTable:
         try:
             spanTableDf = self.TABLE_QUEUES[tableName]
             spanTableDf = spanTableDf.append(df)
+            # fix for duplication problem
+            spanTableDf = spanTableDf.set_index(pd.Series(range(0,len(spanTableDf))))
         except KeyError:
             spanTableDf = df
             self.create_span_table_base_table(tableName)
