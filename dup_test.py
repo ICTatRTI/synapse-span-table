@@ -17,9 +17,8 @@ config.sections()
 # Connect to Synapse.
 syn = synapseclient.Synapse()
 synProjectName = config['SYNAPSE']['ProjectName']
-synUserName = config['SYNAPSE']['UserName']
-apiKey = config['SYNAPSE']['apiKey']
-syn.login(email=synUserName, apiKey=apiKey)
+authToken = config['SYNAPSE']['authToken']
+syn.login(authToken=authToken)
 
 
 def afterTest():
