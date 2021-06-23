@@ -10,7 +10,8 @@ class SynapseSpanTable:
     QUEUE_TABLES = True
     TABLE_QUEUES = {}
     DOC_FLUSH_COUNT = 100
-    FLUSH_BYTE_LIMIT = 100000
+    FLUSH_BYTE_LIMIT = 10000000
+    FLUSH_DOC_LIMIT = 10000
 
     def __init__(self, syn, projectName, columnLimit=152, maxStringLength=50, queueTables=False, docFlushCount=100):
         self.syn = syn
@@ -286,8 +287,9 @@ class SynapseSpanTable:
         # Cache data in TABLE_QUEUES
         self.TABLE_QUEUES[tableName] = spanTableDf
 
-        if self.TABLE_QUEUES[tableName].memory_usage(index=True).sum() >= self.FLUSH_BYTE_LIMIT:
-            print('Immediately flushing table over %d bytes' % self.FLUSH_BYTE_LIMIT)
+        if self.TABLE_QUEUES[tableName].memory_usage(index=True).sum() >= self.FLUSH_BYTE_LIMIT or \
+           len(self.TABLE_QUEUES[tableName].index) >= self.FLUSH_DOC_LIMIT:
+            print('Immediately flushing table')
             self.flush_span_table(tableName)
             del self.TABLE_QUEUES[tableName]
             self.TABLE_QUEUES[tableName] = pd.DataFrame()
