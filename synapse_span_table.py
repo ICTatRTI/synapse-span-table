@@ -12,14 +12,17 @@ class SynapseSpanTable:
     DOC_FLUSH_COUNT = 100
     FLUSH_BYTE_LIMIT = 10000000
     FLUSH_DOC_LIMIT = 10000
+    CONTINUOUS = True
 
-    def __init__(self, syn, projectName, columnLimit=152, maxStringLength=50, queueTables=False, docFlushCount=100):
+    def __init__(self, syn, projectName, columnLimit=152, maxStringLength=50,
+                 queueTables=False, docFlushCount=100, continuous=True):
         self.syn = syn
         self.projectName = projectName
         self.MAX_STRING_LEN = maxStringLength
         self.QUEUE_TABLES = queueTables
         self.COLUMN_LIMIT = columnLimit
         self.DOC_FLUSH_COUNT = docFlushCount
+        self.CONTINUOUS = continuous
 
     def __dataframe_by_columns_intersection(self, dataframe, columns):
         return dataframe.reindex(columns=dataframe.columns.intersection(columns)).ffill()
@@ -33,6 +36,9 @@ class SynapseSpanTable:
     def __get_cleaned_data_in_dataframe(self, data):
         df = pd.DataFrame([data])
         df = df.astype(str).apply(lambda x: x.str[:self.MAX_STRING_LEN])
+        # avoid synapsePythonClient bug #875
+        if "read" in df.columns:
+            df = df.drop(columns=["read"])
         return df
 
     def __clear_span_table_queue(self):
@@ -248,10 +254,7 @@ class SynapseSpanTable:
 
     def flexsert_span_table_record(self, tableName, data):
         df = self.__get_cleaned_data_in_dataframe(data)
-        requiredColumns = list(df.drop('id', 1).columns)
-
         respid = data.get('id')
-
 
         # get the list of known response tables
         table_name = tableName
